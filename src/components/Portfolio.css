@@ -1,0 +1,161 @@
+.portfolio-section {
+  margin-bottom: 5rem;
+}
+
+.portfolio-section-title {
+  font-family: var(--font-heading);
+  font-size: 3rem;
+  font-weight: bold;
+  margin-bottom: 3rem;
+  text-align: center;
+  color: var(--gold);
+}
+
+.portfolio-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+  gap: 1.5rem;
+  padding: 0 1rem;
+}
+
+.portfolio-item {
+  position: relative;
+  overflow: hidden;
+  border-radius: 0.5rem;
+  background-color: rgba(255, 215, 0, 0.1);
+  height: 100%;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.portfolio-item:hover {
+  box-shadow: 0 10px 30px rgba(255, 215, 0, 0.2);
+}
+
+.portfolio-type-badge {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  z-index: 20;
+  background-color: rgba(0, 3, 5, 0.8);
+  border-radius: 50%;
+  padding: 0.375rem;
+  color: var(--gold);
+}
+
+.portfolio-link {
+  display: block;
+  width: 100%;
+  position: relative;
+  aspect-ratio: 16/9;
+}
+
+.portfolio-thumbnail {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.instagram-placeholder {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.instagram-icon {
+  width: 4rem;
+  height: 4rem;
+  color: rgba(255, 255, 255, 0.8);
+  margin-bottom: 1rem;
+}
+
+.instagram-label {
+  background-color: rgba(0, 0, 0, 0.3);
+  padding: 0.5rem 1rem;
+  border-radius: 9999px;
+}
+
+.instagram-label span {
+  color: white;
+  font-weight: 500;
+}
+
+.portfolio-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: rgba(0, 0, 0, 0.5);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.portfolio-link:hover .portfolio-overlay {
+  opacity: 1;
+}
+
+.portfolio-play-button {
+  color: white;
+}
+
+.play-icon,
+.external-icon {
+  width: 4rem;
+  height: 4rem;
+}
+
+.portfolio-content {
+  padding: 1rem;
+}
+
+.portfolio-title {
+  color: var(--gold);
+  font-family: var(--font-heading);
+  font-size: 1.25rem;
+  margin-bottom: 0.5rem;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
+}
+
+.portfolio-description {
+  color: var(--text-gold);
+  font-size: 0.875rem;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+/* Gradient backgrounds for Instagram items */
+.gradient-purple-blue {
+  background: linear-gradient(135deg, #9333ea 0%, #3b82f6 100%);
+}
+
+.gradient-pink-orange {
+  background: linear-gradient(135deg, #ec4899 0%, #fb923c 100%);
+}
+
+.gradient-green-blue {
+  background: linear-gradient(135deg, #10b981 0%, #3b82f6 100%);
+}
+
+.gradient-yellow-red {
+  background: linear-gradient(135deg, #fbbf24 0%, #ef4444 100%);
+}
+
+@media (max-width: 768px) {
+  .portfolio-section-title {
+    font-size: 2.5rem;
+  }
+  
+  .portfolio-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+    padding: 0 0.5rem;
+  }
+}

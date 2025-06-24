@@ -1,0 +1,18 @@
+.app {
+  min-height: 100vh;
+  background-color: var(--dark-blue);
+  color: white;
+}
+
+.main-content {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .main-content {
+    padding: 0 15px;
+  }
+}

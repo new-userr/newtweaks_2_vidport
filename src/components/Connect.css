@@ -1,0 +1,91 @@
+.connect-section {
+  background-color: rgba(0, 3, 5, 0.8);
+  padding: 2rem 0;
+  margin-top: 5rem;
+}
+
+.connect-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+.connect-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 1.5rem;
+}
+
+.connect-lock-icon {
+  color: var(--gold);
+  font-size: 2rem;
+  margin-right: 0.5rem;
+}
+
+.connect-title {
+  font-family: var(--font-heading);
+  font-size: 2rem;
+  font-weight: bold;
+  text-align: center;
+  color: var(--gold);
+}
+
+.connect-links {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 2rem;
+  list-style: none;
+}
+
+.connect-link-item {
+  position: relative;
+}
+
+.connect-link {
+  display: block;
+  text-decoration: none;
+}
+
+.connect-icon-wrapper {
+  position: relative;
+}
+
+.connect-icon {
+  font-size: 2rem;
+  color: var(--gold);
+  transition: color 0.3s ease;
+}
+
+.connect-link:hover .connect-icon {
+  color: var(--text-gold);
+}
+
+.connect-tooltip {
+  position: absolute;
+  top: -2rem;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: var(--gold);
+  color: var(--dark-blue);
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
+  font-size: 0.75rem;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+@media (max-width: 768px) {
+  .connect-title {
+    font-size: 1.5rem;
+  }
+  
+  .connect-links {
+    gap: 1.5rem;
+  }
+  
+  .connect-icon {
+    font-size: 1.5rem;
+  }
+}
