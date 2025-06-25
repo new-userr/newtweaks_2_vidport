@@ -34,61 +34,55 @@ const longFormVideos = [
     description: "An in-depth documentary exploring social issues and human stories.",
     thumbnail: "/uploaded-media/documentary-thumb.jpg",
     videoSrc: "/uploaded-media/documentary.mp4"
+  },
+  {
+    id: 5,
+    type: "uploaded",
+    title: "Educational Series",
+    description: "A comprehensive educational series breaking down complex topics into digestible content.",
+    thumbnail: "/uploaded-media/educational-series-thumb.jpg",
+    videoSrc: "/uploaded-media/educational-series.mp4"
+  },
+  {
+    id: 6,
+    type: "uploaded",
+    title: "Client Testimonial Compilation",
+    description: "A heartfelt compilation of client testimonials showcasing successful partnerships.",
+    thumbnail: "/uploaded-media/testimonial-thumb.jpg",
+    videoSrc: "/uploaded-media/testimonial.mp4"
+  },
+  {
+    id: 7,
+    type: "uploaded",
+    title: "Behind the Scenes Documentary",
+    description: "An exclusive behind-the-scenes look at the creative process and production workflow.",
+    thumbnail: "/uploaded-media/bts-documentary-thumb.jpg",
+    videoSrc: "/uploaded-media/bts-documentary.mp4"
   }
 ]
 
 const shortFormVideos = [
   {
-    id: 5,
+    id: 8,
     postId: "C-NiI64yZsT",
     type: "instagram",
     title: "A Day in TEDx (cinematic)",
     description: "A cinematic recap of an inspiring day at a TEDx event.",
   },
   {
-    id: 6,
+    id: 9,
     postId: "DByd-yky9-c",
     type: "instagram",
     title: "My Dream Bike (cinematic)",
     description: "A visually stunning showcase of a dream bicycle, captured in cinematic style.",
   },
   {
-    id: 7,
-    postId: "DCYuKgFyx3L",
-    type: "instagram",
-    title: "Travel",
-    description: "An immersive travel montage featuring breathtaking landscapes and cultural experiences.",
-  },
-  {
-    id: 8,
-    postId: "C-xnhK2q-jX",
-    type: "instagram",
-    title: "Flashy Edit",
-    description: "A high-energy, flashy edit showcasing advanced video editing techniques.",
-  },
-  {
-    id: 9,
-    type: "uploaded",
-    title: "Product Showcase",
-    description: "A dynamic product reveal with stunning visual effects and motion graphics.",
-    thumbnail: "/uploaded-media/product-showcase-thumb.jpg",
-    videoSrc: "/uploaded-media/product-showcase.mp4"
-  },
-  {
     id: 10,
     type: "uploaded",
-    title: "Music Video Edit",
-    description: "A rhythmic music video edit with synchronized beats and creative transitions.",
-    thumbnail: "/uploaded-media/music-video-thumb.jpg",
-    videoSrc: "/uploaded-media/music-video.mp4"
-  },
-  {
-    id: 11,
-    type: "uploaded",
-    title: "Social Media Campaign",
-    description: "A viral social media campaign video with trending effects and engaging content.",
-    thumbnail: "/uploaded-media/social-campaign-thumb.jpg",
-    videoSrc: "/uploaded-media/social-campaign.mp4"
+    title: "Quick Product Reveal",
+    description: "A fast-paced product reveal with dynamic transitions and eye-catching effects.",
+    thumbnail: "/uploaded-media/quick-product-thumb.jpg",
+    videoSrc: "/uploaded-media/quick-product.mp4"
   }
 ]
 
@@ -138,7 +132,7 @@ const InstagramPlaceholder = ({ gradientClass }) => {
   )
 }
 
-const PortfolioItem = ({ item, isHovered, onHover }) => {
+const PortfolioItem = ({ item, isHovered, onHover, index, isLongForm }) => {
   const gradientClass = useMemo(
     () => (item.type === "instagram" ? gradients[(item.id - 1) % gradients.length] : ""),
     [item.id, item.type]
@@ -169,17 +163,69 @@ const PortfolioItem = ({ item, isHovered, onHover }) => {
     return <FaExternalLinkAlt className="external-icon" />
   }
 
+  // Enhanced animations for long-form videos
+  const longFormItemVariants = {
+    hidden: { 
+      y: 60, 
+      opacity: 0,
+      scale: 0.8,
+      rotateX: -15
+    },
+    visible: {
+      y: 0,
+      opacity: 1,
+      scale: 1,
+      rotateX: 0,
+      transition: { 
+        duration: 0.6,
+        delay: index * 0.15,
+        ease: [0.25, 0.46, 0.45, 0.94]
+      },
+    },
+  }
+
+  const shortFormItemVariants = {
+    hidden: { y: 20, opacity: 0 },
+    visible: {
+      y: 0,
+      opacity: 1,
+      transition: { 
+        duration: 0.4,
+        delay: index * 0.1
+      },
+    },
+  }
+
+  const hoverVariants = {
+    hover: {
+      scale: 1.05,
+      y: -10,
+      rotateY: 5,
+      transition: {
+        duration: 0.3,
+        ease: "easeOut"
+      }
+    }
+  }
+
   return (
     <motion.div
       className="portfolio-item"
+      variants={isLongForm ? longFormItemVariants : shortFormItemVariants}
       onMouseEnter={() => onHover(item.id)}
       onMouseLeave={() => onHover(null)}
-      whileHover={{ scale: 1.03 }}
-      transition={{ duration: 0.3 }}
+      whileHover="hover"
+      variants={isLongForm ? { ...longFormItemVariants, ...hoverVariants } : shortFormItemVariants}
+      style={isLongForm ? { perspective: 1000 } : {}}
     >
-      <div className="portfolio-type-badge">
+      <motion.div 
+        className="portfolio-type-badge"
+        initial={{ scale: 0, rotate: -180 }}
+        animate={{ scale: 1, rotate: 0 }}
+        transition={{ delay: isLongForm ? (index * 0.15) + 0.3 : (index * 0.1) + 0.2, duration: 0.4 }}
+      >
         {getIcon()}
-      </div>
+      </motion.div>
 
       <a
         href={getHref()}
@@ -195,49 +241,111 @@ const PortfolioItem = ({ item, isHovered, onHover }) => {
           <InstagramPlaceholder gradientClass={gradientClass} />
         )}
 
-        <div className="portfolio-overlay">
-          <div className="portfolio-play-button">
+        <motion.div 
+          className="portfolio-overlay"
+          initial={{ opacity: 0 }}
+          whileHover={{ opacity: 1 }}
+          transition={{ duration: 0.3 }}
+        >
+          <motion.div 
+            className="portfolio-play-button"
+            whileHover={{ scale: 1.2, rotate: 360 }}
+            transition={{ duration: 0.3 }}
+          >
             {getOverlayIcon()}
-          </div>
-        </div>
+          </motion.div>
+        </motion.div>
       </a>
 
-      <div className="portfolio-content">
+      <motion.div 
+        className="portfolio-content"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: isLongForm ? (index * 0.15) + 0.4 : (index * 0.1) + 0.3, duration: 0.4 }}
+      >
         <h3 className="portfolio-title">{item.title}</h3>
         <p className="portfolio-description">{item.description}</p>
-      </div>
+      </motion.div>
     </motion.div>
   )
 }
 
-const VideoSection = ({ title, videos, icon, hoveredItem, onHover }) => {
-  const itemVariants = {
-    hidden: { y: 20, opacity: 0 },
+const VideoSection = ({ title, videos, icon, hoveredItem, onHover, isLongForm = false }) => {
+  const [sectionRef, sectionInView] = useInView({
+    triggerOnce: true,
+    threshold: 0.1,
+  })
+
+  const sectionVariants = {
+    hidden: { opacity: 0 },
     visible: {
-      y: 0,
       opacity: 1,
-      transition: { duration: 0.4 },
+      transition: {
+        staggerChildren: isLongForm ? 0.15 : 0.1,
+        delayChildren: 0.2
+      },
     },
   }
 
+  const headerVariants = {
+    hidden: { 
+      opacity: 0, 
+      y: -30,
+      scale: 0.9
+    },
+    visible: {
+      opacity: 1,
+      y: 0,
+      scale: 1,
+      transition: {
+        duration: 0.6,
+        ease: [0.25, 0.46, 0.45, 0.94]
+      }
+    }
+  }
+
   return (
-    <div className="video-category">
-      <div className="category-header">
-        {icon}
-        <h3 className="category-title">{title}</h3>
-      </div>
+    <motion.div 
+      className="video-category"
+      ref={sectionRef}
+      initial="hidden"
+      animate={sectionInView ? "visible" : "hidden"}
+      variants={sectionVariants}
+    >
+      <motion.div 
+        className="category-header"
+        variants={headerVariants}
+      >
+        <motion.div
+          initial={{ rotate: -180, scale: 0 }}
+          animate={{ rotate: 0, scale: 1 }}
+          transition={{ duration: 0.5, delay: 0.3 }}
+        >
+          {icon}
+        </motion.div>
+        <motion.h3 
+          className="category-title"
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.5, delay: 0.4 }}
+        >
+          {title}
+        </motion.h3>
+      </motion.div>
+      
       <div className="portfolio-grid">
-        {videos.map((item) => (
-          <motion.div key={item.id} variants={itemVariants}>
-            <PortfolioItem 
-              item={item} 
-              isHovered={hoveredItem === item.id} 
-              onHover={onHover} 
-            />
-          </motion.div>
+        {videos.map((item, index) => (
+          <PortfolioItem 
+            key={item.id}
+            item={item} 
+            isHovered={hoveredItem === item.id} 
+            onHover={onHover}
+            index={index}
+            isLongForm={isLongForm}
+          />
         ))}
       </div>
-    </div>
+    </motion.div>
   )
 }
 
@@ -245,7 +353,7 @@ export default function Portfolio() {
   const [hoveredItem, setHoveredItem] = useState(null)
   const [ref, inView] = useInView({
     triggerOnce: true,
-    threshold: 0.1,
+    threshold: 0.05,
   })
 
   const containerVariants = {
@@ -253,21 +361,44 @@ export default function Portfolio() {
     visible: {
       opacity: 1,
       transition: {
-        staggerChildren: 0.1,
+        duration: 0.6,
+        staggerChildren: 0.3,
       },
     },
+  }
+
+  const titleVariants = {
+    hidden: { 
+      opacity: 0, 
+      y: -50,
+      scale: 0.8
+    },
+    visible: {
+      opacity: 1,
+      y: 0,
+      scale: 1,
+      transition: {
+        duration: 0.8,
+        ease: [0.25, 0.46, 0.45, 0.94]
+      }
+    }
   }
 
   return (
     <motion.section
       id="my-work"
       className="portfolio-section"
+      ref={ref}
       initial="hidden"
       animate={inView ? "visible" : "hidden"}
       variants={containerVariants}
-      ref={ref}
     >
-      <h2 className="portfolio-section-title">My Work</h2>
+      <motion.h2 
+        className="portfolio-section-title"
+        variants={titleVariants}
+      >
+        My Work
+      </motion.h2>
       
       <VideoSection
         title="Long-form Videos"
@@ -275,6 +406,7 @@ export default function Portfolio() {
         icon={<FaClock className="category-icon" />}
         hoveredItem={hoveredItem}
         onHover={setHoveredItem}
+        isLongForm={true}
       />
 
       <VideoSection
@@ -283,6 +415,7 @@ export default function Portfolio() {
         icon={<FaVideo className="category-icon" />}
         hoveredItem={hoveredItem}
         onHover={setHoveredItem}
+        isLongForm={false}
       />
     </motion.section>
   )
