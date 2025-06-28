@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { FaPlay, FaExternalLinkAlt, FaInstagram, FaVideo, FaClock, FaPause, FaSpinner } from 'react-icons/fa'
+import { FaPlay, FaExternalLinkAlt, FaInstagram, FaVideo, FaClock, FaPause, FaSpinner, FaExclamationTriangle } from 'react-icons/fa'
 import { useInView } from 'react-intersection-observer'
 import './Portfolio.css'
 
@@ -128,7 +128,7 @@ const useLazyLoad = (threshold = 0.1) => {
   return [ref, inView]
 }
 
-// YouTube Player Component with full API integration
+// Enhanced YouTube Player with better connection handling
 const YouTubePlayer = ({ 
   videoId, 
   title, 
@@ -142,22 +142,61 @@ const YouTubePlayer = ({
   const [isLoaded, setIsLoaded] = useState(false)
   const [isPlaying, setIsPlaying] = useState(false)
   const [hasError, setHasError] = useState(false)
-  const [loadingProgress, setLoadingProgress] = useState(0)
+  const [connectionError, setConnectionError] = useState(false)
+  const [retryCount, setRetryCount] = useState(0)
   const debouncedHover = useDebounce(isHovered, 300)
+  const maxRetries = 3
 
-  // YouTube API message handler
+  // Enhanced error handling for YouTube connection issues
+  const handleConnectionError = useCallback(() => {
+    setConnectionError(true)
+    setHasError(true)
+    onError?.('YouTube connection failed')
+  }, [onError])
+
+  // Retry mechanism for failed connections
+  const retryConnection = useCallback(() => {
+    if (retryCount < maxRetries) {
+      setRetryCount(prev => prev + 1)
+      setHasError(false)
+      setConnectionError(false)
+      setIsLoaded(false)
+      
+      // Force iframe reload
+      if (iframeRef.current) {
+        const currentSrc = iframeRef.current.src
+        iframeRef.current.src = ''
+        setTimeout(() => {
+          if (iframeRef.current) {
+            iframeRef.current.src = currentSrc
+          }
+        }, 100)
+      }
+    }
+  }, [retryCount, maxRetries])
+
+  // YouTube API message handler with better error handling
   const handleMessage = useCallback((event) => {
-    if (event.origin !== 'https://www.youtube.com') return
+    // Only accept messages from YouTube
+    if (!event.origin.includes('youtube.com')) return
 
     try {
-      const data = JSON.parse(event.data)
+      const data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data
+      
       if (data.event === 'video-progress') {
-        setLoadingProgress(data.info?.currentTime || 0)
+        // Video is playing successfully
+        setConnectionError(false)
       }
+      
       if (data.info?.playerState !== undefined) {
         const playing = data.info.playerState === 1
         setIsPlaying(playing)
         onStateChange?.(data.info.playerState)
+        
+        // Reset connection error if video starts playing
+        if (playing) {
+          setConnectionError(false)
+        }
       }
     } catch (error) {
       console.warn('YouTube API message parsing failed:', error)
@@ -169,42 +208,49 @@ const YouTubePlayer = ({
     return () => window.removeEventListener('message', handleMessage)
   }, [handleMessage])
 
-  // Auto-play/pause logic
+  // Enhanced auto-play logic with connection error handling
   useEffect(() => {
-    if (!isLoaded || !iframeRef.current) return
+    if (!isLoaded || !iframeRef.current || connectionError) return
 
     const iframe = iframeRef.current
     
     try {
       if (debouncedHover && !isPlaying && !isMobile) {
-        iframe.contentWindow?.postMessage(
-          '{"event":"command","func":"playVideo","args":""}',
-          '*'
-        )
+        // Test if iframe is accessible before sending commands
+        if (iframe.contentWindow) {
+          iframe.contentWindow.postMessage(
+            '{"event":"command","func":"playVideo","args":""}',
+            '*'
+          )
+        } else {
+          handleConnectionError()
+        }
       } else if (!debouncedHover && isPlaying) {
-        iframe.contentWindow?.postMessage(
-          '{"event":"command","func":"pauseVideo","args":""}',
-          '*'
-        )
+        if (iframe.contentWindow) {
+          iframe.contentWindow.postMessage(
+            '{"event":"command","func":"pauseVideo","args":""}',
+            '*'
+          )
+        }
       }
     } catch (error) {
       console.warn('YouTube API command failed:', error)
-      setHasError(true)
-      onError?.(error)
+      handleConnectionError()
     }
-  }, [debouncedHover, isLoaded, isPlaying, isMobile, onError])
+  }, [debouncedHover, isLoaded, isPlaying, isMobile, connectionError, handleConnectionError])
 
   const handleLoad = useCallback(() => {
     setIsLoaded(true)
     setHasError(false)
+    setConnectionError(false)
     onLoad?.()
   }, [onLoad])
 
-  const handleError = useCallback(() => {
-    setHasError(true)
-    onError?.('Failed to load video')
-  }, [onError])
+  const handleIframeError = useCallback(() => {
+    handleConnectionError()
+  }, [handleConnectionError])
 
+  // Enhanced embed URL with better parameters for connection reliability
   const embedUrl = useMemo(() => {
     const params = new URLSearchParams({
       enablejsapi: '1',
@@ -216,16 +262,41 @@ const YouTubePlayer = ({
       autoplay: '0',
       loop: '1',
       playlist: videoId,
-      origin: window.location.origin
+      origin: window.location.origin,
+      // Additional parameters for better connection reliability
+      fs: '1',
+      hl: 'en',
+      cc_load_policy: '0',
+      iv_load_policy: '3',
+      // Disable annotations and related videos
+      disablekb: '1',
+      playsinline: '1'
     })
-    return `https://www.youtube.com/embed/${videoId}?${params.toString()}`
+    return `https://www.youtube-nocookie.com/embed/${videoId}?${params.toString()}`
   }, [videoId, isMobile])
 
-  if (hasError) {
+  if (hasError && retryCount >= maxRetries) {
     return (
       <div className="youtube-error" role="alert" aria-label="Video failed to load">
-        <FaExternalLinkAlt className="error-icon" />
+        <FaExclamationTriangle className="error-icon" />
         <span>Video unavailable</span>
+        <small>YouTube connection failed</small>
+      </div>
+    )
+  }
+
+  if (connectionError && retryCount < maxRetries) {
+    return (
+      <div className="youtube-error" role="alert" aria-label="Video connection error">
+        <FaExclamationTriangle className="error-icon" />
+        <span>Connection issue</span>
+        <button 
+          onClick={retryConnection}
+          className="retry-button"
+          aria-label="Retry loading video"
+        >
+          Retry ({retryCount + 1}/{maxRetries})
+        </button>
       </div>
     )
   }
@@ -241,13 +312,14 @@ const YouTubePlayer = ({
         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
         allowFullScreen
         onLoad={handleLoad}
-        onError={handleError}
+        onError={handleIframeError}
         loading="lazy"
         aria-label={`YouTube video: ${title}`}
+        sandbox="allow-scripts allow-same-origin allow-presentation"
       />
       
       <AnimatePresence>
-        {!isLoaded && (
+        {!isLoaded && !hasError && (
           <motion.div 
             className="youtube-loading"
             initial={{ opacity: 0 }}
@@ -267,46 +339,60 @@ const YouTubePlayer = ({
         )}
       </AnimatePresence>
 
-      <div className="youtube-controls" aria-hidden="true">
-        <motion.div 
-          className="play-state-indicator"
-          animate={{ 
-            scale: isPlaying ? 1.2 : 1,
-            opacity: isPlaying ? 0.8 : 1
-          }}
-          transition={{ duration: 0.3 }}
-        >
-          {isPlaying ? <FaPause /> : <FaPlay />}
-        </motion.div>
-      </div>
+      {isLoaded && !hasError && (
+        <div className="youtube-controls" aria-hidden="true">
+          <motion.div 
+            className="play-state-indicator"
+            animate={{ 
+              scale: isPlaying ? 1.2 : 1,
+              opacity: isPlaying ? 0.8 : 1
+            }}
+            transition={{ duration: 0.3 }}
+          >
+            {isPlaying ? <FaPause /> : <FaPlay />}
+          </motion.div>
+        </div>
+      )}
     </div>
   )
 }
 
-// Optimized thumbnail component with lazy loading
+// Enhanced thumbnail component with multiple fallback sources
 const YouTubeThumbnail = ({ videoId, title, onLoad }) => {
   const [imageRef, imageInView] = useLazyLoad()
   const [imageLoaded, setImageLoaded] = useState(false)
   const [imageError, setImageError] = useState(false)
+  const [currentThumbnailIndex, setCurrentThumbnailIndex] = useState(0)
 
-  const thumbnailUrl = useMemo(() => {
-    return `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`
-  }, [videoId])
+  // Multiple thumbnail quality options as fallbacks
+  const thumbnailUrls = useMemo(() => [
+    `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`,
+    `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`,
+    `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`,
+    `https://img.youtube.com/vi/${videoId}/default.jpg`
+  ], [videoId])
 
   const handleImageLoad = useCallback(() => {
     setImageLoaded(true)
+    setImageError(false)
     onLoad?.()
   }, [onLoad])
 
   const handleImageError = useCallback(() => {
-    setImageError(true)
-  }, [])
+    if (currentThumbnailIndex < thumbnailUrls.length - 1) {
+      // Try next thumbnail quality
+      setCurrentThumbnailIndex(prev => prev + 1)
+    } else {
+      // All thumbnails failed
+      setImageError(true)
+    }
+  }, [currentThumbnailIndex, thumbnailUrls.length])
 
   return (
     <div ref={imageRef} className="thumbnail-container">
       {imageInView && !imageError && (
         <img
-          src={thumbnailUrl}
+          src={thumbnailUrls[currentThumbnailIndex]}
           alt={`${title} thumbnail`}
           className={`portfolio-thumbnail ${imageLoaded ? 'loaded' : ''}`}
           loading="lazy"
@@ -317,6 +403,7 @@ const YouTubeThumbnail = ({ videoId, title, onLoad }) => {
       {imageError && (
         <div className="thumbnail-error" role="img" aria-label="Thumbnail unavailable">
           <FaVideo />
+          <span>Preview unavailable</span>
         </div>
       )}
       {!imageLoaded && imageInView && !imageError && (
@@ -344,7 +431,7 @@ const InstagramPlaceholder = ({ gradientClass, title }) => {
   )
 }
 
-// Main portfolio item component
+// Enhanced portfolio item component with better error handling
 const PortfolioItem = ({ item, index, isLongForm }) => {
   const [isHovered, setIsHovered] = useState(false)
   const [showEmbed, setShowEmbed] = useState(false)
@@ -355,7 +442,7 @@ const PortfolioItem = ({ item, index, isLongForm }) => {
   const engagementTimerRef = useRef(null)
   const [isMobile, setIsMobile] = useState(false)
 
-  // Detect mobile devices
+  // Detect mobile devices and connection quality
   useEffect(() => {
     const checkMobile = () => {
       setIsMobile(window.innerWidth <= 768 || 'ontouchstart' in window)
@@ -389,7 +476,8 @@ const PortfolioItem = ({ item, index, isLongForm }) => {
     setIsHovered(true)
     startEngagementTimer()
     
-    if (item.type === "youtube" && !isMobile) {
+    // Only show embed for YouTube videos on desktop with good connection
+    if (item.type === "youtube" && !isMobile && navigator.onLine !== false) {
       hoverTimeoutRef.current = setTimeout(() => {
         setShowEmbed(true)
       }, 500)
@@ -416,7 +504,8 @@ const PortfolioItem = ({ item, index, isLongForm }) => {
   // Touch handlers for mobile
   const handleTouchStart = useCallback(() => {
     if (isMobile && item.type === "youtube") {
-      setShowEmbed(true)
+      // On mobile, just navigate to YouTube instead of embedding
+      window.open(getHref(), '_blank', 'noopener,noreferrer')
     }
   }, [isMobile, item.type])
 
@@ -449,7 +538,6 @@ const PortfolioItem = ({ item, index, isLongForm }) => {
 
   const handleStateChange = useCallback((state) => {
     // YouTube player state tracking
-    // 1: playing, 2: paused, 3: buffering, 5: cued
     if (state === 1) {
       startEngagementTimer()
     } else {
@@ -513,7 +601,7 @@ const PortfolioItem = ({ item, index, isLongForm }) => {
         aria-label={`Open ${item.title} in new tab`}
       >
         {item.type === "youtube" ? (
-          showEmbed ? (
+          showEmbed && !isMobile ? (
             <YouTubePlayer 
               videoId={item.videoId} 
               title={item.title} 

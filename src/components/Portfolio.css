@@ -286,6 +286,7 @@
   position: absolute;
   inset: 0;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   background: linear-gradient(135deg, 
@@ -294,6 +295,7 @@
   );
   border-radius: 15px 15px 0 0;
   color: var(--text-gold);
+  gap: 0.5rem;
 }
 
 .thumbnail-error {
@@ -321,6 +323,7 @@
   position: absolute;
   inset: 0;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   background: linear-gradient(135deg, 
@@ -329,6 +332,7 @@
   );
   border-radius: 15px 15px 0 0;
   z-index: 10;
+  gap: 1rem;
 }
 
 .youtube-error {
@@ -345,6 +349,27 @@
   border-radius: 15px 15px 0 0;
   color: rgba(239, 68, 68, 0.8);
   gap: 0.5rem;
+  text-align: center;
+  padding: 1rem;
+}
+
+.retry-button {
+  background: linear-gradient(135deg, var(--gold) 0%, #ffed4e 100%);
+  color: var(--dark-blue);
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-top: 0.5rem;
+}
+
+.retry-button:hover {
+  background: linear-gradient(135deg, #ffed4e 0%, var(--gold) 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(255, 215, 0, 0.3);
 }
 
 .youtube-controls {
@@ -606,6 +631,11 @@
     width: 2.5rem;
     height: 2.5rem;
   }
+
+  .retry-button {
+    font-size: 0.7rem;
+    padding: 0.4rem 0.8rem;
+  }
 }
 
 @media (max-width: 480px) {
@@ -657,6 +687,11 @@
   .portfolio-content {
     min-height: 60px;
   }
+
+  .retry-button {
+    font-size: 0.65rem;
+    padding: 0.3rem 0.6rem;
+  }
 }
 
 /* High contrast mode support */
@@ -692,6 +727,11 @@
 }
 
 .portfolio-link:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+}
+
+.retry-button:focus {
   outline: 2px solid var(--gold);
   outline-offset: 2px;
 }
