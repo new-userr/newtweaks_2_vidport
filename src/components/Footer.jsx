@@ -11,7 +11,7 @@ export default function Footer() {
         <p className="footer-credit">
           Design and Developed by{' '}
           <a 
-            href="https://www.linkedin.com/in/ashutosh-ranjan-profile" 
+            href="https://ashutosh-ranjan.onrender.com/" 
             target="_blank" 
             rel="noopener noreferrer"
             className="developer-link"
