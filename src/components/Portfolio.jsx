@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { FaPlay, FaExternalLinkAlt, FaInstagram, FaVideo, FaClock, FaPause, FaSpinner, FaExclamationTriangle } from 'react-icons/fa'
+import { FaPlay, FaExternalLinkAlt, FaInstagram, FaVideo, FaClock, FaSpinner, FaExclamationTriangle, FaYoutube } from 'react-icons/fa'
 import { useInView } from 'react-intersection-observer'
 import './Portfolio.css'
 
@@ -128,237 +128,8 @@ const useLazyLoad = (threshold = 0.1) => {
   return [ref, inView]
 }
 
-// Enhanced YouTube Player with better connection handling
-const YouTubePlayer = ({ 
-  videoId, 
-  title, 
-  isHovered, 
-  onLoad, 
-  onError, 
-  onStateChange,
-  isMobile = false 
-}) => {
-  const iframeRef = useRef(null)
-  const [isLoaded, setIsLoaded] = useState(false)
-  const [isPlaying, setIsPlaying] = useState(false)
-  const [hasError, setHasError] = useState(false)
-  const [connectionError, setConnectionError] = useState(false)
-  const [retryCount, setRetryCount] = useState(0)
-  const debouncedHover = useDebounce(isHovered, 300)
-  const maxRetries = 3
-
-  // Enhanced error handling for YouTube connection issues
-  const handleConnectionError = useCallback(() => {
-    setConnectionError(true)
-    setHasError(true)
-    onError?.('YouTube connection failed')
-  }, [onError])
-
-  // Retry mechanism for failed connections
-  const retryConnection = useCallback(() => {
-    if (retryCount < maxRetries) {
-      setRetryCount(prev => prev + 1)
-      setHasError(false)
-      setConnectionError(false)
-      setIsLoaded(false)
-      
-      // Force iframe reload
-      if (iframeRef.current) {
-        const currentSrc = iframeRef.current.src
-        iframeRef.current.src = ''
-        setTimeout(() => {
-          if (iframeRef.current) {
-            iframeRef.current.src = currentSrc
-          }
-        }, 100)
-      }
-    }
-  }, [retryCount, maxRetries])
-
-  // YouTube API message handler with better error handling
-  const handleMessage = useCallback((event) => {
-    // Only accept messages from YouTube
-    if (!event.origin.includes('youtube.com')) return
-
-    try {
-      const data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data
-      
-      if (data.event === 'video-progress') {
-        // Video is playing successfully
-        setConnectionError(false)
-      }
-      
-      if (data.info?.playerState !== undefined) {
-        const playing = data.info.playerState === 1
-        setIsPlaying(playing)
-        onStateChange?.(data.info.playerState)
-        
-        // Reset connection error if video starts playing
-        if (playing) {
-          setConnectionError(false)
-        }
-      }
-    } catch (error) {
-      console.warn('YouTube API message parsing failed:', error)
-    }
-  }, [onStateChange])
-
-  useEffect(() => {
-    window.addEventListener('message', handleMessage)
-    return () => window.removeEventListener('message', handleMessage)
-  }, [handleMessage])
-
-  // Enhanced auto-play logic with connection error handling
-  useEffect(() => {
-    if (!isLoaded || !iframeRef.current || connectionError) return
-
-    const iframe = iframeRef.current
-    
-    try {
-      if (debouncedHover && !isPlaying && !isMobile) {
-        // Test if iframe is accessible before sending commands
-        if (iframe.contentWindow) {
-          iframe.contentWindow.postMessage(
-            '{"event":"command","func":"playVideo","args":""}',
-            '*'
-          )
-        } else {
-          handleConnectionError()
-        }
-      } else if (!debouncedHover && isPlaying) {
-        if (iframe.contentWindow) {
-          iframe.contentWindow.postMessage(
-            '{"event":"command","func":"pauseVideo","args":""}',
-            '*'
-          )
-        }
-      }
-    } catch (error) {
-      console.warn('YouTube API command failed:', error)
-      handleConnectionError()
-    }
-  }, [debouncedHover, isLoaded, isPlaying, isMobile, connectionError, handleConnectionError])
-
-  const handleLoad = useCallback(() => {
-    setIsLoaded(true)
-    setHasError(false)
-    setConnectionError(false)
-    onLoad?.()
-  }, [onLoad])
-
-  const handleIframeError = useCallback(() => {
-    handleConnectionError()
-  }, [handleConnectionError])
-
-  // Enhanced embed URL with better parameters for connection reliability
-  const embedUrl = useMemo(() => {
-    const params = new URLSearchParams({
-      enablejsapi: '1',
-      controls: isMobile ? '1' : '0',
-      modestbranding: '1',
-      rel: '0',
-      showinfo: '0',
-      mute: '1',
-      autoplay: '0',
-      loop: '1',
-      playlist: videoId,
-      origin: window.location.origin,
-      // Additional parameters for better connection reliability
-      fs: '1',
-      hl: 'en',
-      cc_load_policy: '0',
-      iv_load_policy: '3',
-      // Disable annotations and related videos
-      disablekb: '1',
-      playsinline: '1'
-    })
-    return `https://www.youtube-nocookie.com/embed/${videoId}?${params.toString()}`
-  }, [videoId, isMobile])
-
-  if (hasError && retryCount >= maxRetries) {
-    return (
-      <div className="youtube-error" role="alert" aria-label="Video failed to load">
-        <FaExclamationTriangle className="error-icon" />
-        <span>Video unavailable</span>
-        <small>YouTube connection failed</small>
-      </div>
-    )
-  }
-
-  if (connectionError && retryCount < maxRetries) {
-    return (
-      <div className="youtube-error" role="alert" aria-label="Video connection error">
-        <FaExclamationTriangle className="error-icon" />
-        <span>Connection issue</span>
-        <button 
-          onClick={retryConnection}
-          className="retry-button"
-          aria-label="Retry loading video"
-        >
-          Retry ({retryCount + 1}/{maxRetries})
-        </button>
-      </div>
-    )
-  }
-
-  return (
-    <div className="youtube-embed-container" role="region" aria-label={`Video: ${title}`}>
-      <iframe
-        ref={iframeRef}
-        src={embedUrl}
-        title={title}
-        className="youtube-iframe"
-        frameBorder="0"
-        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-        allowFullScreen
-        onLoad={handleLoad}
-        onError={handleIframeError}
-        loading="lazy"
-        aria-label={`YouTube video: ${title}`}
-        sandbox="allow-scripts allow-same-origin allow-presentation"
-      />
-      
-      <AnimatePresence>
-        {!isLoaded && !hasError && (
-          <motion.div 
-            className="youtube-loading"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            role="status"
-            aria-label="Loading video"
-          >
-            <motion.div
-              animate={{ rotate: 360 }}
-              transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-            >
-              <FaSpinner className="loading-spinner" />
-            </motion.div>
-            <span className="sr-only">Loading video...</span>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {isLoaded && !hasError && (
-        <div className="youtube-controls" aria-hidden="true">
-          <motion.div 
-            className="play-state-indicator"
-            animate={{ 
-              scale: isPlaying ? 1.2 : 1,
-              opacity: isPlaying ? 0.8 : 1
-            }}
-            transition={{ duration: 0.3 }}
-          >
-            {isPlaying ? <FaPause /> : <FaPlay />}
-          </motion.div>
-        </div>
-      )}
-    </div>
-  )
-}
-
-// Enhanced thumbnail component with multiple fallback sources
-const YouTubeThumbnail = ({ videoId, title, onLoad }) => {
+// Enhanced YouTube Thumbnail component with multiple fallback sources
+const YouTubeThumbnail = ({ videoId, title, onLoad, isHovered }) => {
   const [imageRef, imageInView] = useLazyLoad()
   const [imageLoaded, setImageLoaded] = useState(false)
   const [imageError, setImageError] = useState(false)
@@ -391,24 +162,64 @@ const YouTubeThumbnail = ({ videoId, title, onLoad }) => {
   return (
     <div ref={imageRef} className="thumbnail-container">
       {imageInView && !imageError && (
-        <img
-          src={thumbnailUrls[currentThumbnailIndex]}
-          alt={`${title} thumbnail`}
-          className={`portfolio-thumbnail ${imageLoaded ? 'loaded' : ''}`}
-          loading="lazy"
-          onLoad={handleImageLoad}
-          onError={handleImageError}
-        />
+        <>
+          <img
+            src={thumbnailUrls[currentThumbnailIndex]}
+            alt={`${title} thumbnail`}
+            className={`portfolio-thumbnail ${imageLoaded ? 'loaded' : ''}`}
+            loading="lazy"
+            onLoad={handleImageLoad}
+            onError={handleImageError}
+          />
+          
+          {/* YouTube branding overlay */}
+          <div className="youtube-branding">
+            <FaYoutube className="youtube-logo" />
+          </div>
+          
+          {/* Hover effect with play button */}
+          <AnimatePresence>
+            {isHovered && imageLoaded && (
+              <motion.div
+                className="youtube-hover-overlay"
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.8 }}
+                transition={{ duration: 0.3 }}
+              >
+                <motion.div
+                  className="youtube-play-button"
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.95 }}
+                >
+                  <FaPlay />
+                </motion.div>
+                <div className="youtube-cta">
+                  <span>Watch on YouTube</span>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </>
       )}
+      
       {imageError && (
         <div className="thumbnail-error" role="img" aria-label="Thumbnail unavailable">
-          <FaVideo />
-          <span>Preview unavailable</span>
+          <FaYoutube className="youtube-error-icon" />
+          <span>YouTube Video</span>
+          <small>Click to watch</small>
         </div>
       )}
+      
       {!imageLoaded && imageInView && !imageError && (
         <div className="thumbnail-loading" role="status" aria-label="Loading thumbnail">
-          <FaSpinner className="loading-spinner" />
+          <motion.div
+            animate={{ rotate: 360 }}
+            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+          >
+            <FaSpinner className="loading-spinner" />
+          </motion.div>
+          <span>Loading...</span>
         </div>
       )}
     </div>
@@ -431,18 +242,15 @@ const InstagramPlaceholder = ({ gradientClass, title }) => {
   )
 }
 
-// Enhanced portfolio item component with better error handling
+// Enhanced portfolio item component
 const PortfolioItem = ({ item, index, isLongForm }) => {
   const [isHovered, setIsHovered] = useState(false)
-  const [showEmbed, setShowEmbed] = useState(false)
   const [isLoaded, setIsLoaded] = useState(false)
-  const [hasError, setHasError] = useState(false)
   const [engagementTime, setEngagementTime] = useState(0)
-  const hoverTimeoutRef = useRef(null)
   const engagementTimerRef = useRef(null)
   const [isMobile, setIsMobile] = useState(false)
 
-  // Detect mobile devices and connection quality
+  // Detect mobile devices
   useEffect(() => {
     const checkMobile = () => {
       setIsMobile(window.innerWidth <= 768 || 'ontouchstart' in window)
@@ -475,39 +283,12 @@ const PortfolioItem = ({ item, index, isLongForm }) => {
   const handleMouseEnter = useCallback(() => {
     setIsHovered(true)
     startEngagementTimer()
-    
-    // Only show embed for YouTube videos on desktop with good connection
-    if (item.type === "youtube" && !isMobile && navigator.onLine !== false) {
-      hoverTimeoutRef.current = setTimeout(() => {
-        setShowEmbed(true)
-      }, 500)
-    }
-  }, [item.type, isMobile, startEngagementTimer])
+  }, [startEngagementTimer])
 
   const handleMouseLeave = useCallback(() => {
     setIsHovered(false)
     stopEngagementTimer()
-    
-    if (hoverTimeoutRef.current) {
-      clearTimeout(hoverTimeoutRef.current)
-    }
-    
-    if (item.type === "youtube" && showEmbed) {
-      setTimeout(() => {
-        if (!isHovered) {
-          setShowEmbed(false)
-        }
-      }, 1000)
-    }
-  }, [isHovered, item.type, showEmbed, stopEngagementTimer])
-
-  // Touch handlers for mobile
-  const handleTouchStart = useCallback(() => {
-    if (isMobile && item.type === "youtube") {
-      // On mobile, just navigate to YouTube instead of embedding
-      window.open(getHref(), '_blank', 'noopener,noreferrer')
-    }
-  }, [isMobile, item.type])
+  }, [stopEngagementTimer])
 
   const getHref = useCallback(() => {
     if (item.type === "youtube") {
@@ -519,31 +300,27 @@ const PortfolioItem = ({ item, index, isLongForm }) => {
   }, [item])
 
   const getIcon = useCallback(() => {
-    if (item.type === "youtube") return <FaPlay aria-hidden="true" />
+    if (item.type === "youtube") return <FaYoutube aria-hidden="true" />
     if (item.type === "instagram") return <FaInstagram aria-hidden="true" />
     return <FaPlay aria-hidden="true" />
   }, [item.type])
 
   const getOverlayIcon = useCallback(() => {
     if (item.type === "youtube") {
-      return <FaPlay className="play-icon" aria-hidden="true" />
+      return <FaYoutube className="platform-icon" aria-hidden="true" />
     }
     return <FaExternalLinkAlt className="external-icon" aria-hidden="true" />
   }, [item.type])
 
-  const handleError = useCallback((error) => {
-    setHasError(true)
-    console.warn(`Error loading ${item.title}:`, error)
-  }, [item.title])
-
-  const handleStateChange = useCallback((state) => {
-    // YouTube player state tracking
-    if (state === 1) {
-      startEngagementTimer()
-    } else {
-      stopEngagementTimer()
+  const handleClick = useCallback((e) => {
+    // Track engagement
+    if (engagementTime > 0) {
+      console.log(`User engaged with ${item.title} for ${Math.round(engagementTime / 1000)} seconds`)
     }
-  }, [startEngagementTimer, stopEngagementTimer])
+    
+    // Let the default link behavior handle navigation
+    // This ensures compatibility across all browsers and devices
+  }, [engagementTime, item.title])
 
   const itemVariants = {
     hidden: { 
@@ -565,11 +342,10 @@ const PortfolioItem = ({ item, index, isLongForm }) => {
 
   return (
     <motion.article
-      className={`portfolio-item ${isLongForm ? 'long-form' : 'short-form'} ${isHovered ? 'hovered' : ''} ${hasError ? 'error' : ''}`}
+      className={`portfolio-item ${isLongForm ? 'long-form' : 'short-form'} ${isHovered ? 'hovered' : ''}`}
       variants={itemVariants}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
-      onTouchStart={handleTouchStart}
       whileHover={{
         scale: 1.05,
         y: -10,
@@ -593,31 +369,16 @@ const PortfolioItem = ({ item, index, isLongForm }) => {
         target="_blank"
         rel="noopener noreferrer"
         className={`portfolio-link ${gradientClass}`}
-        onClick={(e) => {
-          if (showEmbed && isHovered && !isMobile) {
-            e.preventDefault()
-          }
-        }}
-        aria-label={`Open ${item.title} in new tab`}
+        onClick={handleClick}
+        aria-label={`Open ${item.title} on ${item.type === 'youtube' ? 'YouTube' : 'Instagram'}`}
       >
         {item.type === "youtube" ? (
-          showEmbed && !isMobile ? (
-            <YouTubePlayer 
-              videoId={item.videoId} 
-              title={item.title} 
-              isHovered={isHovered}
-              onLoad={() => setIsLoaded(true)}
-              onError={handleError}
-              onStateChange={handleStateChange}
-              isMobile={isMobile}
-            />
-          ) : (
-            <YouTubeThumbnail 
-              videoId={item.videoId} 
-              title={item.title} 
-              onLoad={() => setIsLoaded(true)}
-            />
-          )
+          <YouTubeThumbnail 
+            videoId={item.videoId} 
+            title={item.title} 
+            onLoad={() => setIsLoaded(true)}
+            isHovered={isHovered}
+          />
         ) : (
           <InstagramPlaceholder 
             gradientClass={gradientClass} 
@@ -625,27 +386,30 @@ const PortfolioItem = ({ item, index, isLongForm }) => {
           />
         )}
 
-        <AnimatePresence>
-          {(isHovered && !showEmbed) && (
-            <motion.div 
-              className="portfolio-overlay"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.3 }}
-              role="presentation"
-            >
+        {/* General overlay for non-YouTube items */}
+        {item.type !== "youtube" && (
+          <AnimatePresence>
+            {isHovered && (
               <motion.div 
-                className="portfolio-play-button"
-                whileHover={{ scale: 1.2, rotate: 360 }}
+                className="portfolio-overlay"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
                 transition={{ duration: 0.3 }}
-                aria-hidden="true"
+                role="presentation"
               >
-                {getOverlayIcon()}
+                <motion.div 
+                  className="portfolio-play-button"
+                  whileHover={{ scale: 1.2, rotate: 360 }}
+                  transition={{ duration: 0.3 }}
+                  aria-hidden="true"
+                >
+                  {getOverlayIcon()}
+                </motion.div>
               </motion.div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+            )}
+          </AnimatePresence>
+        )}
       </a>
 
       <motion.div 
