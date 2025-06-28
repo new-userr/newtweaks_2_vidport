@@ -14,10 +14,31 @@
 
 body {
   font-family: var(--font-body);
-  background-color: var(--dark-blue);
+  background: linear-gradient(135deg, 
+    #000305 0%, 
+    #0a0f14 25%,
+    #050810 50%,
+    #0a0f14 75%,
+    #000305 100%
+  );
   color: white;
   line-height: 1.6;
   overflow-x: hidden;
+  position: relative;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: 
+    radial-gradient(circle at 15% 25%, rgba(255, 215, 0, 0.015) 0%, transparent 50%),
+    radial-gradient(circle at 85% 75%, rgba(255, 215, 0, 0.01) 0%, transparent 50%);
+  pointer-events: none;
+  z-index: -1;
 }
 
 html {
@@ -26,20 +47,25 @@ html {
 
 /* Custom scrollbar */
 ::-webkit-scrollbar {
-  width: 8px;
+  width: 10px;
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--dark-blue);
+  background: linear-gradient(135deg, 
+    rgba(0, 3, 5, 0.8) 0%, 
+    rgba(10, 15, 20, 0.6) 100%
+  );
+  border-radius: 5px;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--gold);
-  border-radius: 4px;
+  background: linear-gradient(135deg, var(--gold) 0%, #ffed4e 100%);
+  border-radius: 5px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--text-gold);
+  background: linear-gradient(135deg, #ffed4e 0%, var(--gold) 100%);
 }
 
 /* Utility classes */

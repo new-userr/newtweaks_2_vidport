@@ -1,13 +1,37 @@
 .app {
   min-height: 100vh;
-  background-color: var(--dark-blue);
+  background: linear-gradient(135deg, 
+    #000305 0%, 
+    #0a0f14 25%,
+    #050810 50%,
+    #0a0f14 75%,
+    #000305 100%
+  );
   color: white;
+  position: relative;
+}
+
+.app::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: 
+    radial-gradient(circle at 10% 20%, rgba(255, 215, 0, 0.02) 0%, transparent 50%),
+    radial-gradient(circle at 90% 80%, rgba(255, 215, 0, 0.015) 0%, transparent 50%),
+    radial-gradient(circle at 50% 50%, rgba(255, 215, 0, 0.01) 0%, transparent 70%);
+  pointer-events: none;
+  z-index: 0;
 }
 
 .main-content {
   max-width: 1200px;
   margin: 0 auto;
   padding: 0 20px;
+  position: relative;
+  z-index: 1;
 }
 
 /* Responsive design */
