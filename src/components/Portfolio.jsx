@@ -1,6 +1,6 @@
-import React, { useState, useMemo, useRef, useEffect } from 'react'
-import { motion } from 'framer-motion'
-import { FaPlay, FaExternalLinkAlt, FaInstagram, FaVideo, FaClock, FaPause } from 'react-icons/fa'
+import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { FaPlay, FaExternalLinkAlt, FaInstagram, FaVideo, FaClock, FaPause, FaSpinner } from 'react-icons/fa'
 import { useInView } from 'react-intersection-observer'
 import './Portfolio.css'
 
@@ -77,6 +77,20 @@ const shortFormVideos = [
     type: "youtube",
     title: "Quick Product Reveal",
     description: "A fast-paced product reveal with dynamic transitions and eye-catching effects.",
+  },
+  {
+    id: 11,
+    videoId: "dQw4w9WgXcQ",
+    type: "youtube",
+    title: "Social Media Promo",
+    description: "An energetic promotional video designed for social media engagement.",
+  },
+  {
+    id: 12,
+    videoId: "9bZkp7q19f0",
+    type: "youtube",
+    title: "Brand Teaser",
+    description: "A captivating brand teaser that builds anticipation and excitement.",
   }
 ]
 
@@ -87,55 +101,175 @@ const gradients = [
   "gradient-yellow-red",
 ]
 
-const YouTubeEmbed = ({ videoId, title, isHovered, onLoad }) => {
+// Performance optimization: Debounce hook
+const useDebounce = (value, delay) => {
+  const [debouncedValue, setDebouncedValue] = useState(value)
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value)
+    }, delay)
+
+    return () => {
+      clearTimeout(handler)
+    }
+  }, [value, delay])
+
+  return debouncedValue
+}
+
+// Intersection Observer hook for lazy loading
+const useLazyLoad = (threshold = 0.1) => {
+  const [ref, inView] = useInView({
+    triggerOnce: true,
+    threshold,
+    rootMargin: '50px'
+  })
+  return [ref, inView]
+}
+
+// YouTube Player Component with full API integration
+const YouTubePlayer = ({ 
+  videoId, 
+  title, 
+  isHovered, 
+  onLoad, 
+  onError, 
+  onStateChange,
+  isMobile = false 
+}) => {
   const iframeRef = useRef(null)
   const [isLoaded, setIsLoaded] = useState(false)
   const [isPlaying, setIsPlaying] = useState(false)
+  const [hasError, setHasError] = useState(false)
+  const [loadingProgress, setLoadingProgress] = useState(0)
+  const debouncedHover = useDebounce(isHovered, 300)
+
+  // YouTube API message handler
+  const handleMessage = useCallback((event) => {
+    if (event.origin !== 'https://www.youtube.com') return
+
+    try {
+      const data = JSON.parse(event.data)
+      if (data.event === 'video-progress') {
+        setLoadingProgress(data.info?.currentTime || 0)
+      }
+      if (data.info?.playerState !== undefined) {
+        const playing = data.info.playerState === 1
+        setIsPlaying(playing)
+        onStateChange?.(data.info.playerState)
+      }
+    } catch (error) {
+      console.warn('YouTube API message parsing failed:', error)
+    }
+  }, [onStateChange])
 
   useEffect(() => {
-    if (isLoaded && iframeRef.current) {
-      try {
-        if (isHovered && !isPlaying) {
-          // Send play command to iframe
-          iframeRef.current.contentWindow?.postMessage(
-            '{"event":"command","func":"playVideo","args":""}',
-            '*'
-          )
-          setIsPlaying(true)
-        } else if (!isHovered && isPlaying) {
-          // Send pause command to iframe
-          iframeRef.current.contentWindow?.postMessage(
-            '{"event":"command","func":"pauseVideo","args":""}',
-            '*'
-          )
-          setIsPlaying(false)
-        }
-      } catch (error) {
-        console.log('YouTube API interaction failed:', error)
-      }
-    }
-  }, [isHovered, isLoaded, isPlaying])
+    window.addEventListener('message', handleMessage)
+    return () => window.removeEventListener('message', handleMessage)
+  }, [handleMessage])
 
-  const handleLoad = () => {
+  // Auto-play/pause logic
+  useEffect(() => {
+    if (!isLoaded || !iframeRef.current) return
+
+    const iframe = iframeRef.current
+    
+    try {
+      if (debouncedHover && !isPlaying && !isMobile) {
+        iframe.contentWindow?.postMessage(
+          '{"event":"command","func":"playVideo","args":""}',
+          '*'
+        )
+      } else if (!debouncedHover && isPlaying) {
+        iframe.contentWindow?.postMessage(
+          '{"event":"command","func":"pauseVideo","args":""}',
+          '*'
+        )
+      }
+    } catch (error) {
+      console.warn('YouTube API command failed:', error)
+      setHasError(true)
+      onError?.(error)
+    }
+  }, [debouncedHover, isLoaded, isPlaying, isMobile, onError])
+
+  const handleLoad = useCallback(() => {
     setIsLoaded(true)
+    setHasError(false)
     onLoad?.()
+  }, [onLoad])
+
+  const handleError = useCallback(() => {
+    setHasError(true)
+    onError?.('Failed to load video')
+  }, [onError])
+
+  const embedUrl = useMemo(() => {
+    const params = new URLSearchParams({
+      enablejsapi: '1',
+      controls: isMobile ? '1' : '0',
+      modestbranding: '1',
+      rel: '0',
+      showinfo: '0',
+      mute: '1',
+      autoplay: '0',
+      loop: '1',
+      playlist: videoId,
+      origin: window.location.origin
+    })
+    return `https://www.youtube.com/embed/${videoId}?${params.toString()}`
+  }, [videoId, isMobile])
+
+  if (hasError) {
+    return (
+      <div className="youtube-error" role="alert" aria-label="Video failed to load">
+        <FaExternalLinkAlt className="error-icon" />
+        <span>Video unavailable</span>
+      </div>
+    )
   }
 
   return (
-    <div className="youtube-embed-container">
+    <div className="youtube-embed-container" role="region" aria-label={`Video: ${title}`}>
       <iframe
         ref={iframeRef}
-        src={`https://www.youtube.com/embed/${videoId}?enablejsapi=1&controls=0&modestbranding=1&rel=0&showinfo=0&mute=1&loop=1&playlist=${videoId}`}
+        src={embedUrl}
         title={title}
         className="youtube-iframe"
         frameBorder="0"
-        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
         allowFullScreen
         onLoad={handleLoad}
+        onError={handleError}
+        loading="lazy"
+        aria-label={`YouTube video: ${title}`}
       />
-      <div className="youtube-overlay">
+      
+      <AnimatePresence>
+        {!isLoaded && (
+          <motion.div 
+            className="youtube-loading"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            role="status"
+            aria-label="Loading video"
+          >
+            <motion.div
+              animate={{ rotate: 360 }}
+              transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+            >
+              <FaSpinner className="loading-spinner" />
+            </motion.div>
+            <span className="sr-only">Loading video...</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <div className="youtube-controls" aria-hidden="true">
         <motion.div 
-          className="youtube-play-indicator"
+          className="play-state-indicator"
           animate={{ 
             scale: isPlaying ? 1.2 : 1,
             opacity: isPlaying ? 0.8 : 1
@@ -149,27 +283,60 @@ const YouTubeEmbed = ({ videoId, title, isHovered, onLoad }) => {
   )
 }
 
-const YouTubeThumbnail = ({ videoId, title, showEmbed, isHovered, onLoad }) => {
-  const thumbnailUrl = `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`
+// Optimized thumbnail component with lazy loading
+const YouTubeThumbnail = ({ videoId, title, onLoad }) => {
+  const [imageRef, imageInView] = useLazyLoad()
+  const [imageLoaded, setImageLoaded] = useState(false)
+  const [imageError, setImageError] = useState(false)
 
-  if (showEmbed) {
-    return <YouTubeEmbed videoId={videoId} title={title} isHovered={isHovered} onLoad={onLoad} />
-  }
+  const thumbnailUrl = useMemo(() => {
+    return `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`
+  }, [videoId])
+
+  const handleImageLoad = useCallback(() => {
+    setImageLoaded(true)
+    onLoad?.()
+  }, [onLoad])
+
+  const handleImageError = useCallback(() => {
+    setImageError(true)
+  }, [])
 
   return (
-    <img
-      src={thumbnailUrl}
-      alt={`${title} thumbnail`}
-      className="portfolio-thumbnail"
-      loading="lazy"
-    />
+    <div ref={imageRef} className="thumbnail-container">
+      {imageInView && !imageError && (
+        <img
+          src={thumbnailUrl}
+          alt={`${title} thumbnail`}
+          className={`portfolio-thumbnail ${imageLoaded ? 'loaded' : ''}`}
+          loading="lazy"
+          onLoad={handleImageLoad}
+          onError={handleImageError}
+        />
+      )}
+      {imageError && (
+        <div className="thumbnail-error" role="img" aria-label="Thumbnail unavailable">
+          <FaVideo />
+        </div>
+      )}
+      {!imageLoaded && imageInView && !imageError && (
+        <div className="thumbnail-loading" role="status" aria-label="Loading thumbnail">
+          <FaSpinner className="loading-spinner" />
+        </div>
+      )}
+    </div>
   )
 }
 
-const InstagramPlaceholder = ({ gradientClass }) => {
+// Instagram placeholder component
+const InstagramPlaceholder = ({ gradientClass, title }) => {
   return (
-    <div className={`instagram-placeholder ${gradientClass}`}>
-      <FaInstagram className="instagram-icon" />
+    <div 
+      className={`instagram-placeholder ${gradientClass}`}
+      role="img"
+      aria-label={`Instagram post: ${title}`}
+    >
+      <FaInstagram className="instagram-icon" aria-hidden="true" />
       <div className="instagram-label">
         <span>View on Instagram</span>
       </div>
@@ -177,65 +344,118 @@ const InstagramPlaceholder = ({ gradientClass }) => {
   )
 }
 
+// Main portfolio item component
 const PortfolioItem = ({ item, index, isLongForm }) => {
   const [isHovered, setIsHovered] = useState(false)
   const [showEmbed, setShowEmbed] = useState(false)
   const [isLoaded, setIsLoaded] = useState(false)
+  const [hasError, setHasError] = useState(false)
+  const [engagementTime, setEngagementTime] = useState(0)
   const hoverTimeoutRef = useRef(null)
+  const engagementTimerRef = useRef(null)
+  const [isMobile, setIsMobile] = useState(false)
+
+  // Detect mobile devices
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth <= 768 || 'ontouchstart' in window)
+    }
+    checkMobile()
+    window.addEventListener('resize', checkMobile)
+    return () => window.removeEventListener('resize', checkMobile)
+  }, [])
 
   const gradientClass = useMemo(
     () => (item.type === "instagram" ? gradients[(item.id - 1) % gradients.length] : ""),
     [item.id, item.type]
   )
 
-  const handleMouseEnter = () => {
+  // Engagement tracking
+  const startEngagementTimer = useCallback(() => {
+    const startTime = Date.now()
+    engagementTimerRef.current = setInterval(() => {
+      setEngagementTime(Date.now() - startTime)
+    }, 100)
+  }, [])
+
+  const stopEngagementTimer = useCallback(() => {
+    if (engagementTimerRef.current) {
+      clearInterval(engagementTimerRef.current)
+      engagementTimerRef.current = null
+    }
+  }, [])
+
+  const handleMouseEnter = useCallback(() => {
     setIsHovered(true)
-    if (item.type === "youtube") {
-      // Delay showing embed to avoid loading too many videos at once
+    startEngagementTimer()
+    
+    if (item.type === "youtube" && !isMobile) {
       hoverTimeoutRef.current = setTimeout(() => {
         setShowEmbed(true)
       }, 500)
     }
-  }
+  }, [item.type, isMobile, startEngagementTimer])
 
-  const handleMouseLeave = () => {
+  const handleMouseLeave = useCallback(() => {
     setIsHovered(false)
+    stopEngagementTimer()
+    
     if (hoverTimeoutRef.current) {
       clearTimeout(hoverTimeoutRef.current)
     }
-    // Keep embed loaded but pause video
+    
     if (item.type === "youtube" && showEmbed) {
-      // Don't immediately hide embed to avoid flickering
       setTimeout(() => {
         if (!isHovered) {
           setShowEmbed(false)
-          setIsLoaded(false)
         }
       }, 1000)
     }
-  }
+  }, [isHovered, item.type, showEmbed, stopEngagementTimer])
 
-  const getHref = () => {
+  // Touch handlers for mobile
+  const handleTouchStart = useCallback(() => {
+    if (isMobile && item.type === "youtube") {
+      setShowEmbed(true)
+    }
+  }, [isMobile, item.type])
+
+  const getHref = useCallback(() => {
     if (item.type === "youtube") {
       return `https://www.youtube.com/watch?v=${item.videoId}`
     } else if (item.type === "instagram") {
       return `https://www.instagram.com/reel/${item.postId}/`
     }
     return "#"
-  }
+  }, [item])
 
-  const getIcon = () => {
-    if (item.type === "youtube") return <FaPlay />
-    if (item.type === "instagram") return <FaInstagram />
-    return <FaPlay />
-  }
+  const getIcon = useCallback(() => {
+    if (item.type === "youtube") return <FaPlay aria-hidden="true" />
+    if (item.type === "instagram") return <FaInstagram aria-hidden="true" />
+    return <FaPlay aria-hidden="true" />
+  }, [item.type])
 
-  const getOverlayIcon = () => {
+  const getOverlayIcon = useCallback(() => {
     if (item.type === "youtube") {
-      return <FaPlay className="play-icon" />
+      return <FaPlay className="play-icon" aria-hidden="true" />
     }
-    return <FaExternalLinkAlt className="external-icon" />
-  }
+    return <FaExternalLinkAlt className="external-icon" aria-hidden="true" />
+  }, [item.type])
+
+  const handleError = useCallback((error) => {
+    setHasError(true)
+    console.warn(`Error loading ${item.title}:`, error)
+  }, [item.title])
+
+  const handleStateChange = useCallback((state) => {
+    // YouTube player state tracking
+    // 1: playing, 2: paused, 3: buffering, 5: cued
+    if (state === 1) {
+      startEngagementTimer()
+    } else {
+      stopEngagementTimer()
+    }
+  }, [startEngagementTimer, stopEngagementTimer])
 
   const itemVariants = {
     hidden: { 
@@ -256,22 +476,26 @@ const PortfolioItem = ({ item, index, isLongForm }) => {
   }
 
   return (
-    <motion.div
-      className={`portfolio-item ${isLongForm ? 'long-form' : 'short-form'} ${isHovered ? 'hovered' : ''}`}
+    <motion.article
+      className={`portfolio-item ${isLongForm ? 'long-form' : 'short-form'} ${isHovered ? 'hovered' : ''} ${hasError ? 'error' : ''}`}
       variants={itemVariants}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
+      onTouchStart={handleTouchStart}
       whileHover={{
         scale: 1.05,
         y: -10,
         transition: { duration: 0.3 }
       }}
+      role="article"
+      aria-label={`Portfolio item: ${item.title}`}
     >
       <motion.div 
         className="portfolio-type-badge"
         initial={{ scale: 0, rotate: -180 }}
         animate={{ scale: 1, rotate: 0 }}
         transition={{ delay: (index * 0.1) + 0.3, duration: 0.4 }}
+        aria-label={`Content type: ${item.type}`}
       >
         {getIcon()}
       </motion.div>
@@ -282,40 +506,58 @@ const PortfolioItem = ({ item, index, isLongForm }) => {
         rel="noopener noreferrer"
         className={`portfolio-link ${gradientClass}`}
         onClick={(e) => {
-          // Prevent navigation when hovering over embedded video
-          if (showEmbed && isHovered) {
+          if (showEmbed && isHovered && !isMobile) {
             e.preventDefault()
           }
         }}
+        aria-label={`Open ${item.title} in new tab`}
       >
         {item.type === "youtube" ? (
-          <YouTubeThumbnail 
-            videoId={item.videoId} 
-            title={item.title} 
-            showEmbed={showEmbed}
-            isHovered={isHovered}
-            onLoad={() => setIsLoaded(true)}
-          />
+          showEmbed ? (
+            <YouTubePlayer 
+              videoId={item.videoId} 
+              title={item.title} 
+              isHovered={isHovered}
+              onLoad={() => setIsLoaded(true)}
+              onError={handleError}
+              onStateChange={handleStateChange}
+              isMobile={isMobile}
+            />
+          ) : (
+            <YouTubeThumbnail 
+              videoId={item.videoId} 
+              title={item.title} 
+              onLoad={() => setIsLoaded(true)}
+            />
+          )
         ) : (
-          <InstagramPlaceholder gradientClass={gradientClass} />
+          <InstagramPlaceholder 
+            gradientClass={gradientClass} 
+            title={item.title}
+          />
         )}
 
-        <motion.div 
-          className="portfolio-overlay"
-          initial={{ opacity: 0 }}
-          animate={{ 
-            opacity: (isHovered && !showEmbed) ? 1 : 0 
-          }}
-          transition={{ duration: 0.3 }}
-        >
-          <motion.div 
-            className="portfolio-play-button"
-            whileHover={{ scale: 1.2, rotate: 360 }}
-            transition={{ duration: 0.3 }}
-          >
-            {getOverlayIcon()}
-          </motion.div>
-        </motion.div>
+        <AnimatePresence>
+          {(isHovered && !showEmbed) && (
+            <motion.div 
+              className="portfolio-overlay"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.3 }}
+              role="presentation"
+            >
+              <motion.div 
+                className="portfolio-play-button"
+                whileHover={{ scale: 1.2, rotate: 360 }}
+                transition={{ duration: 0.3 }}
+                aria-hidden="true"
+              >
+                {getOverlayIcon()}
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </a>
 
       <motion.div 
@@ -326,19 +568,24 @@ const PortfolioItem = ({ item, index, isLongForm }) => {
       >
         <h3 className="portfolio-title">{item.title}</h3>
         <p className="portfolio-description">{item.description}</p>
+        {engagementTime > 0 && (
+          <div className="engagement-indicator" aria-hidden="true">
+            <span className="sr-only">Engagement time: {Math.round(engagementTime / 1000)} seconds</span>
+          </div>
+        )}
       </motion.div>
-    </motion.div>
+    </motion.article>
   )
 }
 
+// Video section component with infinite scroll
 const VideoSection = ({ title, videos, icon, isLongForm = false, scrollDirection = "right" }) => {
   const [sectionRef, sectionInView] = useInView({
     triggerOnce: true,
     threshold: 0.1,
   })
 
-  // Duplicate videos for infinite scroll effect
-  const duplicatedVideos = [...videos, ...videos]
+  const duplicatedVideos = useMemo(() => [...videos, ...videos], [videos])
 
   const sectionVariants = {
     hidden: { opacity: 0 },
@@ -369,14 +616,16 @@ const VideoSection = ({ title, videos, icon, isLongForm = false, scrollDirection
   }
 
   return (
-    <motion.div 
+    <motion.section 
       className="video-category"
       ref={sectionRef}
       initial="hidden"
       animate={sectionInView ? "visible" : "hidden"}
       variants={sectionVariants}
+      role="region"
+      aria-labelledby={`${title.toLowerCase().replace(/\s+/g, '-')}-heading`}
     >
-      <motion.div 
+      <motion.header 
         className="category-header"
         variants={headerVariants}
       >
@@ -384,10 +633,12 @@ const VideoSection = ({ title, videos, icon, isLongForm = false, scrollDirection
           initial={{ rotate: -180, scale: 0 }}
           animate={{ rotate: 0, scale: 1 }}
           transition={{ duration: 0.5, delay: 0.3 }}
+          aria-hidden="true"
         >
           {icon}
         </motion.div>
         <motion.h3 
+          id={`${title.toLowerCase().replace(/\s+/g, '-')}-heading`}
           className="category-title"
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
@@ -395,26 +646,36 @@ const VideoSection = ({ title, videos, icon, isLongForm = false, scrollDirection
         >
           {title}
         </motion.h3>
-      </motion.div>
+      </motion.header>
       
-      <div className="portfolio-scroll-container">
+      <div 
+        className="portfolio-scroll-container"
+        role="region"
+        aria-label={`${title} portfolio items`}
+      >
         <div className="portfolio-scroll-wrapper">
-          <div className={`portfolio-infinite-scroll scroll-${scrollDirection}`}>
+          <div 
+            className={`portfolio-infinite-scroll scroll-${scrollDirection}`}
+            role="list"
+            aria-label={`Scrolling list of ${title.toLowerCase()}`}
+          >
             {duplicatedVideos.map((item, index) => (
-              <PortfolioItem 
-                key={`${item.id}-${index}`}
-                item={item} 
-                index={index % videos.length}
-                isLongForm={isLongForm}
-              />
+              <div key={`${item.id}-${index}`} role="listitem">
+                <PortfolioItem 
+                  item={item} 
+                  index={index % videos.length}
+                  isLongForm={isLongForm}
+                />
+              </div>
             ))}
           </div>
         </div>
       </div>
-    </motion.div>
+    </motion.section>
   )
 }
 
+// Main Portfolio component
 export default function Portfolio() {
   const [ref, inView] = useInView({
     triggerOnce: true,
@@ -450,15 +711,18 @@ export default function Portfolio() {
   }
 
   return (
-    <motion.section
+    <motion.main
       id="my-work"
       className="portfolio-section"
       ref={ref}
       initial="hidden"
       animate={inView ? "visible" : "hidden"}
       variants={containerVariants}
+      role="main"
+      aria-labelledby="portfolio-heading"
     >
       <motion.h2 
+        id="portfolio-heading"
         className="portfolio-section-title"
         variants={titleVariants}
       >
@@ -480,6 +744,6 @@ export default function Portfolio() {
         isLongForm={false}
         scrollDirection="left"
       />
-    </motion.section>
+    </motion.main>
   )
 }

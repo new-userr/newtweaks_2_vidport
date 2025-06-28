@@ -167,12 +167,15 @@
     rgba(10, 15, 20, 0.6) 50%, 
     rgba(0, 3, 5, 0.8) 100%
   );
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
   transform-style: preserve-3d;
   flex-shrink: 0;
   border: 1px solid rgba(255, 215, 0, 0.1);
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
   backdrop-filter: blur(10px);
+  aspect-ratio: 16/9;
+  display: flex;
+  flex-direction: column;
 }
 
 .portfolio-item::before {
@@ -192,12 +195,12 @@
 
 .portfolio-item.long-form {
   width: 400px;
-  height: 300px;
+  min-height: 300px;
 }
 
 .portfolio-item.short-form {
   width: 320px;
-  height: 240px;
+  min-height: 240px;
 }
 
 .portfolio-item:hover {
@@ -210,6 +213,11 @@
 
 .portfolio-item.hovered {
   z-index: 10;
+}
+
+.portfolio-item.error {
+  opacity: 0.7;
+  border-color: rgba(239, 68, 68, 0.3);
 }
 
 .portfolio-type-badge {
@@ -233,20 +241,63 @@
   display: block;
   width: 100%;
   position: relative;
-  height: 60%;
+  flex: 1;
   z-index: 2;
+  text-decoration: none;
+  color: inherit;
 }
 
 .portfolio-thumbnail {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  transition: transform 0.3s ease;
+  transition: all 0.3s ease;
   border-radius: 15px 15px 0 0;
+  opacity: 0;
+  transform: scale(1.1);
+}
+
+.portfolio-thumbnail.loaded {
+  opacity: 1;
+  transform: scale(1);
 }
 
 .portfolio-item:hover .portfolio-thumbnail {
   transform: scale(1.05);
+}
+
+/* Thumbnail loading and error states */
+.thumbnail-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, 
+    rgba(0, 3, 5, 0.9) 0%, 
+    rgba(10, 15, 20, 0.7) 100%
+  );
+  border-radius: 15px 15px 0 0;
+}
+
+.thumbnail-loading,
+.thumbnail-error {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, 
+    rgba(0, 3, 5, 0.9) 0%, 
+    rgba(10, 15, 20, 0.7) 100%
+  );
+  border-radius: 15px 15px 0 0;
+  color: var(--text-gold);
+}
+
+.thumbnail-error {
+  color: rgba(239, 68, 68, 0.8);
 }
 
 /* YouTube Embed Styles */
@@ -256,6 +307,7 @@
   height: 100%;
   border-radius: 15px 15px 0 0;
   overflow: hidden;
+  background: #000;
 }
 
 .youtube-iframe {
@@ -265,7 +317,37 @@
   border-radius: 15px 15px 0 0;
 }
 
-.youtube-overlay {
+.youtube-loading {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, 
+    rgba(0, 3, 5, 0.9) 0%, 
+    rgba(10, 15, 20, 0.7) 100%
+  );
+  border-radius: 15px 15px 0 0;
+  z-index: 10;
+}
+
+.youtube-error {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, 
+    rgba(239, 68, 68, 0.1) 0%, 
+    rgba(0, 3, 5, 0.9) 100%
+  );
+  border-radius: 15px 15px 0 0;
+  color: rgba(239, 68, 68, 0.8);
+  gap: 0.5rem;
+}
+
+.youtube-controls {
   position: absolute;
   top: 0.5rem;
   left: 0.5rem;
@@ -280,12 +362,22 @@
   border: 1px solid rgba(255, 215, 0, 0.3);
 }
 
-.youtube-play-indicator {
+.play-state-indicator {
   color: var(--gold);
   font-size: 1rem;
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+.loading-spinner {
+  color: var(--gold);
+  font-size: 1.5rem;
+}
+
+.error-icon {
+  font-size: 2rem;
+  margin-bottom: 0.5rem;
 }
 
 .instagram-placeholder {
@@ -334,14 +426,8 @@
     rgba(0, 0, 0, 0.7) 0%, 
     rgba(0, 0, 0, 0.5) 100%
   );
-  opacity: 0;
-  transition: opacity 0.3s ease;
   backdrop-filter: blur(8px);
   border-radius: 15px 15px 0 0;
-}
-
-.portfolio-link:hover .portfolio-overlay {
-  opacity: 1;
 }
 
 .portfolio-play-button {
@@ -362,7 +448,6 @@
     rgba(10, 15, 20, 0.7) 50%,
     rgba(0, 3, 5, 0.9) 100%
   );
-  height: 40%;
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
@@ -370,6 +455,7 @@
   border-top: 1px solid rgba(255, 215, 0, 0.1);
   position: relative;
   z-index: 2;
+  min-height: 80px;
 }
 
 .portfolio-title {
@@ -394,6 +480,28 @@
   -webkit-line-clamp: 2;
   line-height: 1.4;
   text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.4);
+  flex: 1;
+}
+
+.engagement-indicator {
+  margin-top: 0.5rem;
+  height: 2px;
+  background: linear-gradient(90deg, var(--gold), transparent);
+  border-radius: 1px;
+  opacity: 0.6;
+}
+
+/* Screen reader only content */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 /* Gradient backgrounds for Instagram items */
@@ -413,6 +521,7 @@
   background: linear-gradient(135deg, #fbbf24 0%, #ef4444 100%);
 }
 
+/* Responsive Design */
 @media (max-width: 768px) {
   .portfolio-section-title {
     font-size: 2.5rem;
@@ -433,12 +542,12 @@
   
   .portfolio-item.long-form {
     width: 320px;
-    height: 240px;
+    min-height: 240px;
   }
 
   .portfolio-item.short-form {
     width: 280px;
-    height: 200px;
+    min-height: 200px;
   }
   
   .video-category {
@@ -452,6 +561,7 @@
   
   .portfolio-content {
     padding: 0.75rem;
+    min-height: 70px;
   }
   
   .portfolio-title {
@@ -474,12 +584,27 @@
     padding: 3rem 0;
   }
 
-  .youtube-play-indicator {
+  .play-state-indicator {
     font-size: 0.875rem;
   }
 
-  .youtube-overlay {
+  .youtube-controls {
     padding: 0.375rem;
+  }
+
+  .loading-spinner {
+    font-size: 1.25rem;
+  }
+
+  .instagram-icon {
+    width: 2.5rem;
+    height: 2.5rem;
+  }
+
+  .play-icon,
+  .external-icon {
+    width: 2.5rem;
+    height: 2.5rem;
   }
 }
 
@@ -490,12 +615,12 @@
   
   .portfolio-item.long-form {
     width: 280px;
-    height: 200px;
+    min-height: 200px;
   }
 
   .portfolio-item.short-form {
     width: 240px;
-    height: 180px;
+    min-height: 180px;
   }
   
   .portfolio-scroll-container {
@@ -510,7 +635,80 @@
     animation-duration: 30s;
   }
 
-  .youtube-play-indicator {
+  .play-state-indicator {
     font-size: 0.75rem;
+  }
+
+  .loading-spinner {
+    font-size: 1rem;
+  }
+
+  .instagram-icon {
+    width: 2rem;
+    height: 2rem;
+  }
+
+  .play-icon,
+  .external-icon {
+    width: 2rem;
+    height: 2rem;
+  }
+
+  .portfolio-content {
+    min-height: 60px;
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .portfolio-item {
+    border: 2px solid var(--gold);
+  }
+  
+  .portfolio-overlay {
+    background: rgba(0, 0, 0, 0.9);
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .portfolio-infinite-scroll {
+    animation: none;
+  }
+  
+  .portfolio-item {
+    transition: none;
+  }
+  
+  .loading-spinner {
+    animation: none;
+  }
+}
+
+/* Focus styles for accessibility */
+.portfolio-link:focus {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+}
+
+.portfolio-link:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+}
+
+/* Print styles */
+@media print {
+  .portfolio-section {
+    background: white;
+    color: black;
+  }
+  
+  .portfolio-infinite-scroll {
+    animation: none;
+    flex-wrap: wrap;
+  }
+  
+  .youtube-embed-container {
+    display: none;
   }
 }
