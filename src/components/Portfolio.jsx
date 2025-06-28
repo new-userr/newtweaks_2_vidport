@@ -1,6 +1,6 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useRef, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { FaPlay, FaExternalLinkAlt, FaInstagram, FaVideo, FaClock } from 'react-icons/fa'
+import { FaPlay, FaExternalLinkAlt, FaInstagram, FaVideo, FaClock, FaPause } from 'react-icons/fa'
 import { useInView } from 'react-intersection-observer'
 import './Portfolio.css'
 
@@ -21,43 +21,38 @@ const longFormVideos = [
   },
   {
     id: 3,
-    type: "uploaded",
+    videoId: "dQw4w9WgXcQ",
+    type: "youtube",
     title: "Corporate Brand Story",
     description: "A comprehensive brand story video showcasing company values and mission.",
-    thumbnail: "/uploaded-media/corporate-brand-thumb.jpg",
-    videoSrc: "/uploaded-media/corporate-brand.mp4"
   },
   {
     id: 4,
-    type: "uploaded",
+    videoId: "9bZkp7q19f0",
+    type: "youtube",
     title: "Documentary Feature",
     description: "An in-depth documentary exploring social issues and human stories.",
-    thumbnail: "/uploaded-media/documentary-thumb.jpg",
-    videoSrc: "/uploaded-media/documentary.mp4"
   },
   {
     id: 5,
-    type: "uploaded",
+    videoId: "kJQP7kiw5Fk",
+    type: "youtube",
     title: "Educational Series",
     description: "A comprehensive educational series breaking down complex topics into digestible content.",
-    thumbnail: "/uploaded-media/educational-series-thumb.jpg",
-    videoSrc: "/uploaded-media/educational-series.mp4"
   },
   {
     id: 6,
-    type: "uploaded",
+    videoId: "jNQXAC9IVRw",
+    type: "youtube",
     title: "Client Testimonial Compilation",
     description: "A heartfelt compilation of client testimonials showcasing successful partnerships.",
-    thumbnail: "/uploaded-media/testimonial-thumb.jpg",
-    videoSrc: "/uploaded-media/testimonial.mp4"
   },
   {
     id: 7,
-    type: "uploaded",
+    videoId: "ScMzIvxBSi4",
+    type: "youtube",
     title: "Behind the Scenes Documentary",
     description: "An exclusive behind-the-scenes look at the creative process and production workflow.",
-    thumbnail: "/uploaded-media/bts-documentary-thumb.jpg",
-    videoSrc: "/uploaded-media/bts-documentary.mp4"
   }
 ]
 
@@ -78,11 +73,10 @@ const shortFormVideos = [
   },
   {
     id: 10,
-    type: "uploaded",
+    videoId: "M7lc1UVf-VE",
+    type: "youtube",
     title: "Quick Product Reveal",
     description: "A fast-paced product reveal with dynamic transitions and eye-catching effects.",
-    thumbnail: "/uploaded-media/quick-product-thumb.jpg",
-    videoSrc: "/uploaded-media/quick-product.mp4"
   }
 ]
 
@@ -93,8 +87,74 @@ const gradients = [
   "gradient-yellow-red",
 ]
 
-const YouTubeThumbnail = ({ videoId, title }) => {
+const YouTubeEmbed = ({ videoId, title, isHovered, onLoad }) => {
+  const iframeRef = useRef(null)
+  const [isLoaded, setIsLoaded] = useState(false)
+  const [isPlaying, setIsPlaying] = useState(false)
+
+  useEffect(() => {
+    if (isLoaded && iframeRef.current) {
+      try {
+        if (isHovered && !isPlaying) {
+          // Send play command to iframe
+          iframeRef.current.contentWindow?.postMessage(
+            '{"event":"command","func":"playVideo","args":""}',
+            '*'
+          )
+          setIsPlaying(true)
+        } else if (!isHovered && isPlaying) {
+          // Send pause command to iframe
+          iframeRef.current.contentWindow?.postMessage(
+            '{"event":"command","func":"pauseVideo","args":""}',
+            '*'
+          )
+          setIsPlaying(false)
+        }
+      } catch (error) {
+        console.log('YouTube API interaction failed:', error)
+      }
+    }
+  }, [isHovered, isLoaded, isPlaying])
+
+  const handleLoad = () => {
+    setIsLoaded(true)
+    onLoad?.()
+  }
+
+  return (
+    <div className="youtube-embed-container">
+      <iframe
+        ref={iframeRef}
+        src={`https://www.youtube.com/embed/${videoId}?enablejsapi=1&controls=0&modestbranding=1&rel=0&showinfo=0&mute=1&loop=1&playlist=${videoId}`}
+        title={title}
+        className="youtube-iframe"
+        frameBorder="0"
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+        allowFullScreen
+        onLoad={handleLoad}
+      />
+      <div className="youtube-overlay">
+        <motion.div 
+          className="youtube-play-indicator"
+          animate={{ 
+            scale: isPlaying ? 1.2 : 1,
+            opacity: isPlaying ? 0.8 : 1
+          }}
+          transition={{ duration: 0.3 }}
+        >
+          {isPlaying ? <FaPause /> : <FaPlay />}
+        </motion.div>
+      </div>
+    </div>
+  )
+}
+
+const YouTubeThumbnail = ({ videoId, title, showEmbed, isHovered, onLoad }) => {
   const thumbnailUrl = `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`
+
+  if (showEmbed) {
+    return <YouTubeEmbed videoId={videoId} title={title} isHovered={isHovered} onLoad={onLoad} />
+  }
 
   return (
     <img
@@ -102,21 +162,6 @@ const YouTubeThumbnail = ({ videoId, title }) => {
       alt={`${title} thumbnail`}
       className="portfolio-thumbnail"
       loading="lazy"
-    />
-  )
-}
-
-const UploadedVideoThumbnail = ({ thumbnail, title }) => {
-  return (
-    <img
-      src={thumbnail}
-      alt={`${title} thumbnail`}
-      className="portfolio-thumbnail"
-      loading="lazy"
-      onError={(e) => {
-        // Fallback to a placeholder if image fails to load
-        e.target.src = 'https://images.pexels.com/photos/1181263/pexels-photo-1181263.jpeg?auto=compress&cs=tinysrgb&w=800'
-      }}
     />
   )
 }
@@ -133,18 +178,48 @@ const InstagramPlaceholder = ({ gradientClass }) => {
 }
 
 const PortfolioItem = ({ item, index, isLongForm }) => {
+  const [isHovered, setIsHovered] = useState(false)
+  const [showEmbed, setShowEmbed] = useState(false)
+  const [isLoaded, setIsLoaded] = useState(false)
+  const hoverTimeoutRef = useRef(null)
+
   const gradientClass = useMemo(
     () => (item.type === "instagram" ? gradients[(item.id - 1) % gradients.length] : ""),
     [item.id, item.type]
   )
+
+  const handleMouseEnter = () => {
+    setIsHovered(true)
+    if (item.type === "youtube") {
+      // Delay showing embed to avoid loading too many videos at once
+      hoverTimeoutRef.current = setTimeout(() => {
+        setShowEmbed(true)
+      }, 500)
+    }
+  }
+
+  const handleMouseLeave = () => {
+    setIsHovered(false)
+    if (hoverTimeoutRef.current) {
+      clearTimeout(hoverTimeoutRef.current)
+    }
+    // Keep embed loaded but pause video
+    if (item.type === "youtube" && showEmbed) {
+      // Don't immediately hide embed to avoid flickering
+      setTimeout(() => {
+        if (!isHovered) {
+          setShowEmbed(false)
+          setIsLoaded(false)
+        }
+      }, 1000)
+    }
+  }
 
   const getHref = () => {
     if (item.type === "youtube") {
       return `https://www.youtube.com/watch?v=${item.videoId}`
     } else if (item.type === "instagram") {
       return `https://www.instagram.com/reel/${item.postId}/`
-    } else if (item.type === "uploaded") {
-      return item.videoSrc
     }
     return "#"
   }
@@ -152,12 +227,11 @@ const PortfolioItem = ({ item, index, isLongForm }) => {
   const getIcon = () => {
     if (item.type === "youtube") return <FaPlay />
     if (item.type === "instagram") return <FaInstagram />
-    if (item.type === "uploaded") return <FaVideo />
     return <FaPlay />
   }
 
   const getOverlayIcon = () => {
-    if (item.type === "youtube" || item.type === "uploaded") {
+    if (item.type === "youtube") {
       return <FaPlay className="play-icon" />
     }
     return <FaExternalLinkAlt className="external-icon" />
@@ -183,8 +257,10 @@ const PortfolioItem = ({ item, index, isLongForm }) => {
 
   return (
     <motion.div
-      className={`portfolio-item ${isLongForm ? 'long-form' : 'short-form'}`}
+      className={`portfolio-item ${isLongForm ? 'long-form' : 'short-form'} ${isHovered ? 'hovered' : ''}`}
       variants={itemVariants}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
       whileHover={{
         scale: 1.05,
         y: -10,
@@ -205,11 +281,21 @@ const PortfolioItem = ({ item, index, isLongForm }) => {
         target="_blank"
         rel="noopener noreferrer"
         className={`portfolio-link ${gradientClass}`}
+        onClick={(e) => {
+          // Prevent navigation when hovering over embedded video
+          if (showEmbed && isHovered) {
+            e.preventDefault()
+          }
+        }}
       >
         {item.type === "youtube" ? (
-          <YouTubeThumbnail videoId={item.videoId} title={item.title} />
-        ) : item.type === "uploaded" ? (
-          <UploadedVideoThumbnail thumbnail={item.thumbnail} title={item.title} />
+          <YouTubeThumbnail 
+            videoId={item.videoId} 
+            title={item.title} 
+            showEmbed={showEmbed}
+            isHovered={isHovered}
+            onLoad={() => setIsLoaded(true)}
+          />
         ) : (
           <InstagramPlaceholder gradientClass={gradientClass} />
         )}
@@ -217,7 +303,9 @@ const PortfolioItem = ({ item, index, isLongForm }) => {
         <motion.div 
           className="portfolio-overlay"
           initial={{ opacity: 0 }}
-          whileHover={{ opacity: 1 }}
+          animate={{ 
+            opacity: (isHovered && !showEmbed) ? 1 : 0 
+          }}
           transition={{ duration: 0.3 }}
         >
           <motion.div 
