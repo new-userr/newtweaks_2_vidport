@@ -324,6 +324,11 @@ const PortfolioItem = ({ item, index, isLongForm }) => {
         ease: [0.25, 0.46, 0.45, 0.94]
       },
     },
+    hover: {
+      scale: 1.05,
+      y: -10,
+      transition: { duration: 0.3 }
+    }
   }
 
   return (
@@ -332,11 +337,7 @@ const PortfolioItem = ({ item, index, isLongForm }) => {
       variants={itemVariants}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
-      whileHover={{
-        scale: 1.05,
-        y: -10,
-        transition: { duration: 0.3 }
-      }}
+      whileHover="hover"
       role="article"
       aria-label={`Portfolio item: ${item.title}`}
     >
