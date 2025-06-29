@@ -1,0 +1,230 @@
+/* Custom Aesthetic Cursor Styles */
+
+/* Hide default cursor */
+* {
+  cursor: none !important;
+}
+
+/* Custom cursor container */
+.custom-cursor {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 20px;
+  height: 20px;
+  background: linear-gradient(135deg, var(--gold) 0%, #ffed4e 100%);
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 9999;
+  mix-blend-mode: difference;
+  transition: all 0.15s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  box-shadow: 
+    0 0 20px rgba(255, 215, 0, 0.6),
+    0 0 40px rgba(255, 215, 0, 0.3),
+    inset 0 0 10px rgba(255, 255, 255, 0.2);
+}
+
+/* Cursor follower for smooth trail effect */
+.cursor-follower {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 40px;
+  height: 40px;
+  border: 2px solid rgba(255, 215, 0, 0.3);
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 9998;
+  transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  backdrop-filter: blur(2px);
+}
+
+/* Hover states for different elements */
+.custom-cursor.hover-link {
+  transform: scale(1.5);
+  background: linear-gradient(135deg, #ffed4e 0%, var(--gold) 100%);
+  box-shadow: 
+    0 0 30px rgba(255, 215, 0, 0.8),
+    0 0 60px rgba(255, 215, 0, 0.4),
+    inset 0 0 15px rgba(255, 255, 255, 0.3);
+}
+
+.cursor-follower.hover-link {
+  transform: scale(1.2);
+  border-color: rgba(255, 215, 0, 0.6);
+  border-width: 3px;
+}
+
+/* Button hover state */
+.custom-cursor.hover-button {
+  transform: scale(2);
+  background: radial-gradient(circle, var(--gold) 0%, #ffed4e 70%, transparent 100%);
+  box-shadow: 
+    0 0 40px rgba(255, 215, 0, 1),
+    0 0 80px rgba(255, 215, 0, 0.5),
+    inset 0 0 20px rgba(255, 255, 255, 0.4);
+}
+
+.cursor-follower.hover-button {
+  transform: scale(1.5);
+  border-color: rgba(255, 215, 0, 0.8);
+  border-width: 4px;
+  background: rgba(255, 215, 0, 0.1);
+}
+
+/* Video/media hover state */
+.custom-cursor.hover-media {
+  transform: scale(1.8);
+  background: conic-gradient(from 0deg, var(--gold), #ffed4e, var(--gold));
+  animation: rotate 2s linear infinite;
+  box-shadow: 
+    0 0 35px rgba(255, 215, 0, 0.9),
+    0 0 70px rgba(255, 215, 0, 0.5),
+    inset 0 0 15px rgba(255, 255, 255, 0.3);
+}
+
+.cursor-follower.hover-media {
+  transform: scale(1.3);
+  border-color: rgba(255, 215, 0, 0.7);
+  border-width: 3px;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+/* Text selection state */
+.custom-cursor.selecting-text {
+  transform: scale(0.8);
+  background: linear-gradient(45deg, var(--gold), #ffed4e);
+  border-radius: 2px;
+  width: 2px;
+  height: 20px;
+}
+
+.cursor-follower.selecting-text {
+  opacity: 0.3;
+  transform: scale(0.5);
+}
+
+/* Loading/waiting state */
+.custom-cursor.loading {
+  background: conic-gradient(from 0deg, transparent, var(--gold), transparent);
+  animation: rotate 1s linear infinite;
+  transform: scale(1.2);
+}
+
+.cursor-follower.loading {
+  border-style: dashed;
+  animation: rotate 2s linear infinite reverse;
+}
+
+/* Disabled/not-allowed state */
+.custom-cursor.not-allowed {
+  background: linear-gradient(135deg, #ff4444 0%, #cc0000 100%);
+  transform: scale(1.3);
+  box-shadow: 
+    0 0 25px rgba(255, 68, 68, 0.6),
+    0 0 50px rgba(255, 68, 68, 0.3);
+}
+
+.cursor-follower.not-allowed {
+  border-color: rgba(255, 68, 68, 0.5);
+  transform: scale(1.1);
+}
+
+/* Animations */
+@keyframes rotate {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1.3);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.5);
+    opacity: 0.7;
+  }
+}
+
+/* Cursor trail particles */
+.cursor-particle {
+  position: fixed;
+  width: 4px;
+  height: 4px;
+  background: var(--gold);
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 9997;
+  opacity: 0.8;
+  animation: fadeOut 0.8s ease-out forwards;
+}
+
+@keyframes fadeOut {
+  0% {
+    opacity: 0.8;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+}
+
+/* Mobile/touch device fallback */
+@media (hover: none) and (pointer: coarse) {
+  .custom-cursor,
+  .cursor-follower,
+  .cursor-particle {
+    display: none;
+  }
+  
+  * {
+    cursor: auto !important;
+  }
+}
+
+/* Reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+  .custom-cursor,
+  .cursor-follower {
+    transition: none;
+    animation: none;
+  }
+  
+  .cursor-particle {
+    display: none;
+  }
+}
+
+/* High contrast mode */
+@media (prefers-contrast: high) {
+  .custom-cursor {
+    background: #ffff00;
+    border: 2px solid #000000;
+    mix-blend-mode: normal;
+  }
+  
+  .cursor-follower {
+    border-color: #ffff00;
+    border-width: 3px;
+  }
+}
+
+/* Focus visible enhancement */
+*:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+}
+
+/* Smooth cursor movement for better performance */
+.custom-cursor,
+.cursor-follower {
+  will-change: transform;
+  backface-visibility: hidden;
+  transform-style: preserve-3d;
+}
