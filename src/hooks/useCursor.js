@@ -85,6 +85,10 @@ export const useCursor = () => {
     if (!cursorRef.current || !followerRef.current) return
 
     const target = e.target
+    
+    // Check if target is an Element before calling matches()
+    if (!(target instanceof Element)) return
+    
     const cursor = cursorRef.current
     const follower = followerRef.current
 
